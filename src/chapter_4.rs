@@ -1,3 +1,6 @@
+mod lexer;
+pub mod parser;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Term {
     True,
