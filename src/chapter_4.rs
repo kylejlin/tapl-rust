@@ -1,3 +1,4 @@
+pub mod big_step_evaluator;
 pub mod evaluator;
 mod lexer;
 pub mod parser;
