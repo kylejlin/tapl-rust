@@ -1,4 +1,4 @@
-use tapl_rust::chapter_4::*;
+use tapl_rust::chapter_7::*;
 
 fn main() {
     println!("Hello, world!");
