@@ -92,7 +92,7 @@ impl<'a> TokenParser<'a> {
             Some(self.consume_var().and_then(|param| {
                 self.consume_token(ExpectedToken::Dot).and_then(|_| {
                     let body = self.consume_term();
-                    constructors::build_abs(lambda,param., body)
+                    constructors::build_abs(lambda, param, body)
                 })
             }))
         } else {
@@ -100,12 +100,13 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_var(&mut self) -> Result<NamedTerm, ParseErr> {
-        // if self.is_exhausted() {
-        //   Err(  self.expected_tokens_err(&[ExpectedToken::Ident]))
-        // } else if let PositionedToken {
-
-        // }
+    fn consume_var(&mut self) -> Result<named::Var, ParseErr> {
+        if self.is_exhausted() {
+            Err(self.expected_tokens_err(&[ExpectedToken::Ident]))
+        } else if let PositionedToken::Var {} = self.tokens[0] {
+        } else {
+            Err(self.expected_tokens_err(&[ExpectedToken::Ident]))
+        }
     }
 
     fn consume_opt_callable(&mut self) -> Option<Result<NamedTerm, ParseErr>> {}
@@ -154,9 +155,9 @@ impl<'a> TokenParser<'a> {
 mod constructors {
     use super::*;
 
-    pub fn build_abs(lambda: NamedTerm, parameter_name: String, body: NamedTerm) -> NamedTerm {
+    pub fn build_abs(lambda: NamedTerm, param: named::Var, body: NamedTerm) -> NamedTerm {
         NamedTerm::Abs(Box::new(named::Abs {
-            parameter_name,
+            param,
             body,
             position: FilePositionRange {
                 start: lambda.position().start,

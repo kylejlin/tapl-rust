@@ -16,7 +16,7 @@ pub struct Var {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Abs {
     pub position: FilePositionRange,
-    pub parameter_name: String,
+    pub param: Var,
     pub body: Term,
 }
 

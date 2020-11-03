@@ -1,9 +1,9 @@
 use crate::file_position::{FilePosition, FilePositionRange};
 use matchers::{Match, MATCHERS};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
-    Number(usize),
+    Ident(String),
     Lambda,
     Dot,
     LParen,
@@ -11,8 +11,8 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn is_number(&self) -> bool {
-        if let Token::Number(_) = self {
+    pub fn is_ident(&self) -> bool {
+        if let Token::Ident(_) = self {
             true
         } else {
             false
@@ -36,7 +36,7 @@ impl Token {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PositionedToken {
     token: Token,
     position: FilePositionRange,
@@ -57,14 +57,14 @@ mod matchers {
     use std::str::FromStr;
 
     pub static MATCHERS: [fn(&str) -> Option<Match>; 5] = [
-        match_number,
+        match_ident,
         match_lambda,
         match_dot,
         match_lparen,
         match_rparen,
     ];
 
-    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    #[derive(Clone, PartialEq, Eq, Debug)]
     pub struct Match {
         token: Token,
         len: usize,
@@ -80,17 +80,24 @@ mod matchers {
         }
     }
 
-    fn match_number(s: &str) -> Option<Match> {
-        let mut number = "".to_string();
+    fn match_ident(s: &str) -> Option<Match> {
+        let mut name = "".to_string();
         for c in s.chars() {
-            if !c.is_digit(10) {
-                return usize::from_str(&number).ok().map(|parsed| Match {
-                    token: Token::Number(parsed),
-                    len: number.len(),
-                });
+            let valid = c.is_ascii_alphabetic()
+                || c == '_'
+                || (!name.is_empty() && (c == '\'' || c.is_digit(10)));
+            if !valid {
+                return if name.is_empty() {
+                    None
+                } else {
+                    Some(Match {
+                        token: Token::Ident(name),
+                        len: name.len(),
+                    })
+                };
             }
 
-            number.push(c)
+            name.push(c)
         }
         return None;
     }
