@@ -2,7 +2,7 @@ use parser::err::*;
 use tapl_rust::chapter_7::*;
 
 fn main() {
-    let src = r#"\a.\b.c"#;
+    let src = r#"\a. b c"#;
 
     match parser::parse(src) {
         Ok(t) => println!("{:?}", t),

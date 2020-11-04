@@ -38,18 +38,8 @@ impl Token {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PositionedToken {
-    token: Token,
-    position: FilePositionRange,
-}
-
-impl PositionedToken {
-    pub fn token(&self) -> &Token {
-        &self.token
-    }
-
-    pub fn position(&self) -> FilePositionRange {
-        self.position
-    }
+    pub token: Token,
+    pub position: FilePositionRange,
 }
 
 mod matchers {
