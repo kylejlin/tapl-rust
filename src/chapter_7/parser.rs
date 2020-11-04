@@ -1,5 +1,8 @@
 mod lexer;
 
+#[cfg(test)]
+mod test;
+
 pub mod err {
     pub use super::lexer::TokenizationErr;
 
