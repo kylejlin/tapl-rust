@@ -43,8 +43,8 @@ pub struct PositionedToken {
 }
 
 impl PositionedToken {
-    pub fn token(&self) -> Token {
-        self.token
+    pub fn token(&self) -> &Token {
+        &self.token
     }
 
     pub fn position(&self) -> FilePositionRange {
@@ -54,7 +54,6 @@ impl PositionedToken {
 
 mod matchers {
     use super::*;
-    use std::str::FromStr;
 
     pub static MATCHERS: [fn(&str) -> Option<Match>; 5] = [
         match_ident,
@@ -71,8 +70,8 @@ mod matchers {
     }
 
     impl Match {
-        pub fn token(&self) -> Token {
-            self.token
+        pub fn token(&self) -> &Token {
+            &self.token
         }
 
         pub fn len(&self) -> usize {
@@ -86,20 +85,21 @@ mod matchers {
             let valid = c.is_ascii_alphabetic()
                 || c == '_'
                 || (!name.is_empty() && (c == '\'' || c.is_digit(10)));
-            if !valid {
-                return if name.is_empty() {
-                    None
-                } else {
-                    Some(Match {
-                        token: Token::Ident(name),
-                        len: name.len(),
-                    })
-                };
+            if valid {
+                name.push(c)
+            } else {
+                break;
             }
-
-            name.push(c)
         }
-        return None;
+        if name.is_empty() {
+            None
+        } else {
+            let len = name.len();
+            Some(Match {
+                token: Token::Ident(name),
+                len,
+            })
+        }
     }
 
     fn match_lambda(s: &str) -> Option<Match> {
@@ -174,7 +174,7 @@ pub fn tokenize(mut src: &str) -> Result<Vec<PositionedToken>, TokenizationErr> 
             let end = tracker.current_position();
 
             out.push(PositionedToken {
-                token: match_.token(),
+                token: match_.token().clone(),
                 position: FilePositionRange { start, end },
             });
             src = &src[match_.len()..];
