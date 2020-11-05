@@ -185,13 +185,25 @@ impl<'a> TokenParser<'a> {
     }
 
     fn consume_opt_callable(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
-        if let Some(var) = self.consume_opt_var() {
-            Some(Ok(NamedTerm::Var(var)))
-        } else if let Some(paren_res) = self.consume_opt_paren_exp() {
-            Some(paren_res)
+        // if let Some(var) = self.consume_opt_var() {
+        //     Some(Ok(NamedTerm::Var(var)))
+        // } else if let Some(paren_res) = self.consume_opt_paren_exp() {
+        //     Some(paren_res)
+        // } else {
+        //     None
+        // }
+
+        if let Some(app_res) = self.consume_opt_app() {
+            Some(app_res)
+        } else if let Some(arg_res) = self.consume_opt_arg() {
+            Some(arg_res)
         } else {
             None
         }
+    }
+
+    fn consume_opt_app(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
+        //
     }
 
     fn consume_opt_paren_exp(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
