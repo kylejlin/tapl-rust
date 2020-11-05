@@ -170,9 +170,9 @@ impl<'a> TokenParser<'a> {
     fn consume_opt_var(&mut self) -> Option<named::Var> {
         if self.is_exhausted() {
             None
-        } else if let Token::Ident(name) = self.tokens[0].token() {
+        } else if let Token::Ident(name) = &self.tokens[0].token {
             let var = Some(named::Var {
-                position: self.tokens[0].position(),
+                position: self.tokens[0].position,
                 name: name.clone(),
             });
 
@@ -214,7 +214,7 @@ impl<'a> TokenParser<'a> {
             None
         } else {
             let ptoken = &self.tokens[0];
-            if expected.matcher()(&ptoken.token()) {
+            if expected.matcher()(&ptoken.token) {
                 self.tokens = &self.tokens[1..];
                 Some(ptoken.clone())
             } else {
@@ -248,18 +248,18 @@ mod constructors {
             param,
             body,
             position: FilePositionRange {
-                start: lambda.position().start,
+                start: lambda.position.start,
                 end,
             },
         }))
     }
 
-    pub fn build_app(callee: NamedTerm, argument: NamedTerm) -> NamedTerm {
+    pub fn build_app(callee: NamedTerm, arg: NamedTerm) -> NamedTerm {
         let start = callee.position().start;
-        let end = argument.position().end;
+        let end = arg.position().end;
         NamedTerm::App(Box::new(named::App {
             callee,
-            argument,
+            arg,
             position: FilePositionRange { start, end },
         }))
     }

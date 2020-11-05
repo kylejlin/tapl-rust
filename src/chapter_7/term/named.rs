@@ -24,7 +24,7 @@ pub struct Abs {
 pub struct App {
     pub position: FilePositionRange,
     pub callee: Term,
-    pub argument: Term,
+    pub arg: Term,
 }
 
 impl Term {
