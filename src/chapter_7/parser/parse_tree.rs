@@ -1,5 +1,6 @@
-use super::super::term::named::Term as NamedTerm;
+use super::super::term::named;
 use crate::file_position::{FilePositionRange, Position};
+use named::Term as NamedTerm;
 
 #[derive(Clone, Debug)]
 pub enum Term {
@@ -36,13 +37,13 @@ pub enum Arg {
 impl Position for &Term {
     fn position(self) -> FilePositionRange {
         match self {
-            Term::Abs(a) => a.position,
+            Term::Abs(a) => a.position(),
             Term::Callable(c) => c.position(),
             Term::CallableAbs(ca) => {
-                let (c, a) = **ca;
+                let (c, a) = &**ca;
                 FilePositionRange {
                     start: c.position().start,
-                    end: a.position.end,
+                    end: a.position().end,
                 }
             }
         }
@@ -95,12 +96,91 @@ impl Position for &Callable {
 impl Position for &Arg {
     fn position(self) -> FilePositionRange {
         match self {
-            Arg::Var(var) => var.position,
+            Arg::Var(var) => var.position(),
             Arg::Parenthesized(term) => term.position(),
         }
     }
 }
 
 impl Into<NamedTerm> for Term {
-    fn into(self) -> NamedTerm {}
+    fn into(self) -> NamedTerm {
+        let position = self.position();
+        match self {
+            Term::Abs(abs) => (*abs).into(),
+            Term::Callable(callable) => (*callable).into(),
+            Term::CallableAbs(ca) => {
+                let (callable, abs) = *ca;
+                named::App {
+                    position,
+                    callee: callable.into(),
+                    arg: abs.into(),
+                }
+                .into()
+            }
+        }
+    }
+}
+
+impl Into<named::Abs> for Abs {
+    fn into(self) -> named::Abs {
+        named::Abs {
+            position: self.position(),
+            param: self.param.into(),
+            body: self.body.into(),
+        }
+    }
+}
+
+impl Into<NamedTerm> for Abs {
+    fn into(self) -> NamedTerm {
+        let named_abs: named::Abs = self.into();
+        named_abs.into()
+    }
+}
+
+impl Into<named::Var> for Var {
+    fn into(self) -> named::Var {
+        named::Var {
+            position: self.position(),
+            name: self.name,
+        }
+    }
+}
+
+impl Into<NamedTerm> for Var {
+    fn into(self) -> NamedTerm {
+        let named_var: named::Var = self.into();
+        named_var.into()
+    }
+}
+
+impl Into<NamedTerm> for Callable {
+    fn into(self) -> NamedTerm {
+        if self.right.is_empty() {
+            self.left.into()
+        } else {
+            let mut app: NamedTerm = self.left.into();
+            for arg in self.right {
+                app = named::App {
+                    position: FilePositionRange {
+                        start: app.position().start,
+                        end: arg.position().end,
+                    },
+                    callee: app,
+                    arg: arg.into(),
+                }
+                .into();
+            }
+            app
+        }
+    }
+}
+
+impl Into<NamedTerm> for Arg {
+    fn into(self) -> NamedTerm {
+        match self {
+            Arg::Var(var) => var.into(),
+            Arg::Parenthesized(inner) => (*inner).into(),
+        }
+    }
 }

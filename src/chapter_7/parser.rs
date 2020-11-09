@@ -183,14 +183,6 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_arg(&mut self) -> Result<Arg, ParseErr> {
-        if let Some(arg_res) = self.consume_opt_arg() {
-            arg_res
-        } else {
-            Err(self.expected_tokens_err(vec![ExpectedToken::Ident, ExpectedToken::LParen]))
-        }
-    }
-
     fn consume_opt_arg(&mut self) -> Option<Result<Arg, ParseErr>> {
         if let Some(var) = self.consume_opt_var() {
             Some(Ok(Arg::Var(var)))
