@@ -1,6 +1,7 @@
 use super::named;
 use crate::file_position::{FilePositionRange, Position};
 use named::Term as NamedTerm;
+use std::fmt;
 use std::ops::Add;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -281,5 +282,15 @@ impl Add<&str> for &Context {
 
     fn add(self, name: &str) -> Context {
         self + name.to_string()
+    }
+}
+
+impl fmt::Display for Term {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Term::Var(var) => write!(f, "{}", var.index),
+            Term::Abs(abs) => write!(f, "(\\. {})", abs.body),
+            Term::App(app) => write!(f, "({} {})", app.callee, app.arg),
+        }
     }
 }
