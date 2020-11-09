@@ -4,7 +4,7 @@ pub fn eval1(term: Term) -> Option<Term> {
     if let Term::App(app) = term {
         let App {
             callee,
-            argument,
+            arg,
             position,
         } = *app;
 
@@ -12,21 +12,21 @@ pub fn eval1(term: Term) -> Option<Term> {
             eval1(callee).map(|evaluated_callee| {
                 Term::App(Box::new(App {
                     callee: evaluated_callee,
-                    argument,
+                    arg,
                     position,
                 }))
             })
-        } else if callee.is_val() && argument.is_app() {
-            eval1(argument).map(|evaluated_argument| {
+        } else if callee.is_val() && arg.is_app() {
+            eval1(arg).map(|evaluated_argument| {
                 Term::App(Box::new(App {
                     callee,
-                    argument: evaluated_argument,
+                    arg: evaluated_argument,
                     position,
                 }))
             })
-        } else if argument.is_val() {
+        } else if arg.is_val() {
             if let Term::Abs(callee) = callee {
-                Some(callee.apply(&argument))
+                Some(callee.apply(&arg))
             } else {
                 None
             }

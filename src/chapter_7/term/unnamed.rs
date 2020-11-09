@@ -1,4 +1,7 @@
-use crate::file_position::FilePositionRange;
+use super::named;
+use crate::file_position::{FilePositionRange, Position};
+use named::Term as NamedTerm;
+use std::ops::Add;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Term {
@@ -17,7 +20,7 @@ pub struct Var {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Abs {
     pub position: FilePositionRange,
-    pub parameter_name: String,
+    pub param_name: String,
     pub body: Term,
 }
 
@@ -25,7 +28,12 @@ pub struct Abs {
 pub struct App {
     pub position: FilePositionRange,
     pub callee: Term,
-    pub argument: Term,
+    pub arg: Term,
+}
+
+#[derive(Clone, Debug)]
+pub struct Context {
+    names: Vec<String>,
 }
 
 impl Term {
@@ -49,7 +57,7 @@ impl Term {
 
                 Term::App(app) => Term::App(Box::new(App {
                     callee: shift_with_cutoff(app.callee, amount, cutoff),
-                    argument: shift_with_cutoff(app.argument, amount, cutoff),
+                    arg: shift_with_cutoff(app.arg, amount, cutoff),
                     ..*app
                 })),
             }
@@ -75,7 +83,7 @@ impl Term {
 
             Term::App(app) => Term::App(Box::new(App {
                 callee: app.callee.subst(replacee, replacer),
-                argument: app.argument.subst(replacee, replacer),
+                arg: app.arg.subst(replacee, replacer),
                 ..*app
             })),
         }
@@ -108,18 +116,170 @@ impl Term {
             false
         }
     }
-
-    pub fn position(&self) -> &FilePositionRange {
-        match self {
-            Term::Var(var) => &var.position,
-            Term::Abs(abs) => &abs.position,
-            Term::App(app) => &app.position,
-        }
-    }
 }
 
 impl Abs {
     pub fn apply(self, argument: &Term) -> Term {
         self.body.subst(0, &argument.clone().shift(1)).shift(-1)
+    }
+}
+
+impl From<Var> for Term {
+    fn from(var: Var) -> Term {
+        Term::Var(var)
+    }
+}
+
+impl From<Abs> for Term {
+    fn from(abs: Abs) -> Term {
+        Term::Abs(Box::new(abs))
+    }
+}
+
+impl From<App> for Term {
+    fn from(app: App) -> Term {
+        Term::App(Box::new(app))
+    }
+}
+
+impl Position for &Term {
+    fn position(self) -> FilePositionRange {
+        match self {
+            Term::Var(var) => var.position(),
+            Term::Abs(abs) => abs.position(),
+            Term::App(app) => app.position(),
+        }
+    }
+}
+
+impl Position for &Var {
+    fn position(self) -> FilePositionRange {
+        self.position
+    }
+}
+
+impl Position for &Abs {
+    fn position(self) -> FilePositionRange {
+        self.position
+    }
+}
+
+impl Position for &App {
+    fn position(self) -> FilePositionRange {
+        self.position
+    }
+}
+
+impl Term {
+    pub fn from_named(named: NamedTerm, ctx: &Context) -> Result<Term, CannotFindVarInCtxErr> {
+        match named {
+            NamedTerm::Var(var) => Var::from_named(var, ctx),
+            NamedTerm::Abs(abs) => {
+                let position = abs.position();
+                let param_name = abs.param.name;
+                let body_ctx = ctx.clone() + param_name.clone();
+                match Term::from_named(abs.body, &body_ctx) {
+                    Ok(body) => Ok(Abs {
+                        position,
+                        param_name,
+                        body,
+                    }
+                    .into()),
+                    Err(e) => Err(e),
+                }
+            }
+            NamedTerm::App(app) => {
+                let position = app.position;
+                match Term::from_named(app.callee, ctx) {
+                    Ok(callee) => match Term::from_named(app.arg, ctx) {
+                        Ok(arg) => Ok(App {
+                            position,
+                            callee,
+                            arg,
+                        }
+                        .into()),
+                        Err(e) => Err(e),
+                    },
+                    Err(e) => Err(e),
+                }
+            }
+        }
+    }
+}
+
+impl Var {
+    pub fn from_named(var: named::Var, ctx: &Context) -> Result<Term, CannotFindVarInCtxErr> {
+        match ctx.get(&var.name) {
+            Some(index) => Ok(Term::Var(Var {
+                position: var.position,
+                index,
+                context_length: ctx.len(),
+            })),
+            None => Err(CannotFindVarInCtxErr(var.name)),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CannotFindVarInCtxErr(pub String);
+
+impl Context {
+    pub fn from_strs(strs: &[&str]) -> Context {
+        Context {
+            names: strs.iter().map(ToString::to_string).collect(),
+        }
+    }
+
+    pub fn from_strings(strings: &[String]) -> Context {
+        Context {
+            names: strings.iter().cloned().collect(),
+        }
+    }
+
+    pub fn get(&self, target: &str) -> Option<usize> {
+        for (i, name) in self.names.iter().rev().enumerate() {
+            if name == target {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    pub fn len(&self) -> usize {
+        self.names.len()
+    }
+}
+
+impl Add<String> for Context {
+    type Output = Context;
+
+    fn add(mut self, name: String) -> Context {
+        self.names.push(name);
+        self
+    }
+}
+
+impl Add<String> for &Context {
+    type Output = Context;
+
+    fn add(self, name: String) -> Context {
+        let clone = self.clone();
+        clone + name
+    }
+}
+
+impl Add<&str> for Context {
+    type Output = Context;
+
+    fn add(self, name: &str) -> Context {
+        self + name.to_string()
+    }
+}
+
+impl Add<&str> for &Context {
+    type Output = Context;
+
+    fn add(self, name: &str) -> Context {
+        self + name.to_string()
     }
 }
