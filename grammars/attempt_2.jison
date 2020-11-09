@@ -1,11 +1,13 @@
-/* description: Parses end executes mathematical expressions. */
+// Reason for revising:
+//
+// Rename production rules.
 
 /* lexical grammar */
 %lex
 %%
 
 \s+                   /* skip whitespace */
-[0-9]+("."[0-9]+)?\b  return 'IDENT'
+[a-zA-Z]\b  return 'IDENT'
 "lam"                   return 'LAM'
 "." return "DOT"
 "("                   return '('
@@ -27,14 +29,14 @@ expressions
     ;
 
 
-term : abs | appish | appish abs {$$={callee:$1,arg:$2};};
+term : abs | callable | callable abs {$$={callee:$1,arg:$2};};
 
 var : IDENT {$$=yytext;};
 
 abs : LAM var DOT  term   {$$={fp: $2, body: $4};};
 
-app : appish high_prec {$$={callee:$1,arg:$2};};
-appish : app | high_prec;
+app : callable arg {$$={callee:$1,arg:$2};};
+callable : app | arg;
 
-high_prec : var | paren_ex;
+arg : var | paren_ex;
 paren_ex : "(" term ")" {$$={inner:$2};};
