@@ -1,4 +1,5 @@
 mod lexer;
+mod parse_tree;
 
 #[cfg(test)]
 mod test;
@@ -92,11 +93,12 @@ use crate::file_position::FilePositionRange;
 use err::*;
 use lexer::{tokenize, PositionedToken, Token};
 use named::Term as NamedTerm;
+use parse_tree::*;
 
 pub fn parse(src: &str) -> Result<NamedTerm, ParseErr> {
     match tokenize(src) {
         Err(err) => Err(ParseErr::Tokenization(err)),
-        Ok(tokens) => TokenParser::from_tokens(&tokens).parse(),
+        Ok(tokens) => TokenParser::from_tokens(&tokens).parse().map(Into::into),
     }
 }
 
@@ -109,7 +111,7 @@ impl<'a> TokenParser<'a> {
         TokenParser { tokens }
     }
 
-    pub fn parse(mut self) -> Result<NamedTerm, ParseErr> {
+    pub fn parse(mut self) -> Result<Term, ParseErr> {
         match self.consume_term() {
             Ok(term) => {
                 if self.is_exhausted() {
@@ -122,15 +124,15 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_term(&mut self) -> Result<NamedTerm, ParseErr> {
+    fn consume_term(&mut self) -> Result<Term, ParseErr> {
         if let Some(abs_res) = self.consume_opt_abs() {
-            abs_res
+            abs_res.map(Into::into)
         } else if let Some(callable_res) = self.consume_opt_callable() {
             callable_res.and_then(|callable| {
                 if let Some(abs_res) = self.consume_opt_abs() {
-                    abs_res.map(|abs| constructors::build_app(callable, abs))
+                    abs_res.map(|abs| (callable, abs).into())
                 } else {
-                    Ok(callable)
+                    Ok(callable.into())
                 }
             })
         } else {
@@ -142,7 +144,7 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_opt_abs(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
+    fn consume_opt_abs(&mut self) -> Option<Result<Abs, ParseErr>> {
         if let Some(lambda) = self.consume_opt_token(ExpectedToken::Lambda) {
             Some(match self.consume_var() {
                 Ok(param) => match self.consume_token(ExpectedToken::Dot) {
@@ -159,7 +161,47 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_var(&mut self) -> Result<named::Var, ParseErr> {
+    fn consume_opt_callable(&mut self) -> Option<Result<Callable, ParseErr>> {
+        if let Some(arg_res) = self.consume_opt_arg() {
+            Some(match arg_res {
+                Ok(left) => {
+                    let mut right = vec![];
+                    while let Some(arg_res) = self.consume_opt_arg() {
+                        match arg_res {
+                            Ok(arg) => right.push(arg),
+                            Err(e) => {
+                                return Some(Err(e));
+                            }
+                        }
+                    }
+                    Ok(Callable { left, right })
+                }
+                Err(e) => Err(e),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn consume_arg(&mut self) -> Result<Arg, ParseErr> {
+        if let Some(arg_res) = self.consume_opt_arg() {
+            arg_res
+        } else {
+            Err(self.expected_tokens_err(vec![ExpectedToken::Ident, ExpectedToken::LParen]))
+        }
+    }
+
+    fn consume_opt_arg(&mut self) -> Option<Result<Arg, ParseErr>> {
+        if let Some(var) = self.consume_opt_var() {
+            Some(Ok(Arg::Var(var)))
+        } else if let Some(paren_exp_res) = self.consume_opt_paren_exp() {
+            Some(paren_exp_res.map(|inner| Arg::Parenthesized(Box::new(inner))))
+        } else {
+            None
+        }
+    }
+
+    fn consume_var(&mut self) -> Result<Var, ParseErr> {
         if let Some(var) = self.consume_opt_var() {
             Ok(var)
         } else {
@@ -167,11 +209,11 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_opt_var(&mut self) -> Option<named::Var> {
+    fn consume_opt_var(&mut self) -> Option<Var> {
         if self.is_exhausted() {
             None
         } else if let Token::Ident(name) = &self.tokens[0].token {
-            let var = Some(named::Var {
+            let var = Some(Var {
                 position: self.tokens[0].position,
                 name: name.clone(),
             });
@@ -184,33 +226,18 @@ impl<'a> TokenParser<'a> {
         }
     }
 
-    fn consume_opt_callable(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
-        // if let Some(var) = self.consume_opt_var() {
-        //     Some(Ok(NamedTerm::Var(var)))
-        // } else if let Some(paren_res) = self.consume_opt_paren_exp() {
-        //     Some(paren_res)
-        // } else {
-        //     None
-        // }
-
-        if let Some(app_res) = self.consume_opt_app() {
-            Some(app_res)
-        } else if let Some(arg_res) = self.consume_opt_arg() {
-            Some(arg_res)
+    fn consume_opt_paren_exp(&mut self) -> Option<Result<Term, ParseErr>> {
+        if let Some(_) = self.consume_opt_token(ExpectedToken::LParen) {
+            Some(match self.consume_term() {
+                Ok(term) => match self.consume_token(ExpectedToken::RParen) {
+                    Ok(_) => Ok(term),
+                    Err(e) => Err(e),
+                },
+                Err(e) => Err(e),
+            })
         } else {
             None
         }
-    }
-
-    fn consume_opt_app(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
-        //
-    }
-
-    fn consume_opt_paren_exp(&mut self) -> Option<Result<NamedTerm, ParseErr>> {
-        self.consume_opt_token(ExpectedToken::LParen).map(|_| {
-            self.consume_term()
-                .and_then(|inner| self.consume_token(ExpectedToken::RParen).map(|_| inner))
-        })
     }
 
     fn consume_token(&mut self, expected: ExpectedToken) -> Result<PositionedToken, ParseErr> {
@@ -253,26 +280,17 @@ impl<'a> TokenParser<'a> {
 
 mod constructors {
     use super::*;
+    use crate::file_position::Position;
 
-    pub fn build_abs(lambda: &PositionedToken, param: named::Var, body: NamedTerm) -> NamedTerm {
+    pub fn build_abs(lambda: &PositionedToken, param: Var, body: Term) -> Abs {
         let end = body.position().end;
-        NamedTerm::Abs(Box::new(named::Abs {
+        Abs {
             param,
             body,
             position: FilePositionRange {
                 start: lambda.position.start,
                 end,
             },
-        }))
-    }
-
-    pub fn build_app(callee: NamedTerm, arg: NamedTerm) -> NamedTerm {
-        let start = callee.position().start;
-        let end = arg.position().end;
-        NamedTerm::App(Box::new(named::App {
-            callee,
-            arg,
-            position: FilePositionRange { start, end },
-        }))
+        }
     }
 }

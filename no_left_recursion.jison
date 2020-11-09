@@ -29,12 +29,11 @@ expressions
 
 term : abs | callable | callable abs {$$={callee:$1,arg:$2};};
 
-var : IDENT {$$=yytext;};
 
 abs : LAM var DOT  term   {$$={fp: $2, body: $4};};
 
-callable = arg callable_rhs
-callable_rhs = arg callable_rhs | EPSILON;
+callable = arg zero_or_more_args
+zero_or_more_args = arg zero_or_more_args | EPSILON;
 // a b c d
 // raw = a (b (c (d EPSILON)))
 // ->
@@ -73,4 +72,5 @@ correct T (y1 y2) = correct (T y1) y2
 
 
 arg : var | paren_ex;
+var : IDENT {$$=yytext;};
 paren_ex : "(" term ")" {$$={inner:$2};};
