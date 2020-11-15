@@ -3,9 +3,8 @@ use term::unnamed::{Context, Term as UnnamedTerm};
 
 fn main() {
     let src = r#"(\a. a \_. b) \x.x"#;
-    let ctx = &["b", "c"];
     let unnamed =
-        UnnamedTerm::from_named(parse(src).expect("Cannot parse."), &Context::from_strs(ctx))
+        UnnamedTerm::from_named(parse(src).expect("Cannot parse."), &Context::from_strs(&[]))
             .expect("Cannot remove names.");
     println!("Unnamed: {}", unnamed);
     let res1 = eval1(unnamed.clone()).expect("Cannot eval 1");

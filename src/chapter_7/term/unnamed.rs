@@ -216,13 +216,13 @@ impl Var {
                 index,
                 context_length: ctx.len(),
             })),
-            None => Err(CannotFindVarInCtxErr(var.name)),
+            None => Err(CannotFindVarInCtxErr(var)),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct CannotFindVarInCtxErr(pub String);
+pub struct CannotFindVarInCtxErr(pub named::Var);
 
 impl Context {
     pub fn from_strs(strs: &[&str]) -> Context {
