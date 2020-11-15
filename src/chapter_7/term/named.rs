@@ -1,5 +1,6 @@
 use super::unnamed;
 use crate::file_position::{FilePosition, FilePositionRange, Position};
+use std::fmt;
 use unnamed::{Context, Term as UnnamedTerm};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -170,5 +171,15 @@ fn dummy_position() -> FilePositionRange {
             column: 0,
             line: 0,
         },
+    }
+}
+
+impl fmt::Display for Term {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Term::Var(var) => write!(f, "{}", var.name),
+            Term::Abs(abs) => write!(f, "(\\{}. {})", abs.param.name, abs.body),
+            Term::App(app) => write!(f, "({} {})", app.callee, app.arg),
+        }
     }
 }
