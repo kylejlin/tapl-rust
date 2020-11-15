@@ -37,3 +37,16 @@ pub fn eval1(term: Term) -> Option<Term> {
         None
     }
 }
+
+pub fn eval(term: Term) -> Term {
+    eval_count(term).0
+}
+
+pub fn eval_count(mut term: Term) -> (Term, usize) {
+    let mut i = 0;
+    while let Some(evaluated) = eval1(term.clone()) {
+        i += 1;
+        term = evaluated;
+    }
+    (term, i)
+}
