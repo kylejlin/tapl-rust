@@ -176,7 +176,7 @@ impl TryFrom<NamedTerm> for Term {
     type Error = CannotFindVarInCtxErr;
 
     fn try_from(named: NamedTerm) -> Result<Term, CannotFindVarInCtxErr> {
-        Term::from_named(named, &Context::from_strings(&[]))
+        Term::from_named(named, &Context::empty())
     }
 }
 
@@ -219,7 +219,7 @@ impl Term {
 
 impl Var {
     pub fn from_named(var: named::Var, ctx: &Context) -> Result<Term, CannotFindVarInCtxErr> {
-        match ctx.get(&var.name) {
+        match ctx.index(&var.name) {
             Some(index) => Ok(Term::Var(Var {
                 position: var.position,
                 index,
@@ -234,6 +234,10 @@ impl Var {
 pub struct CannotFindVarInCtxErr(pub named::Var);
 
 impl Context {
+    pub fn empty() -> Context {
+        Context { names: vec![] }
+    }
+
     pub fn from_strs(strs: &[&str]) -> Context {
         Context {
             names: strs.iter().map(ToString::to_string).collect(),
@@ -246,13 +250,21 @@ impl Context {
         }
     }
 
-    pub fn get(&self, target: &str) -> Option<usize> {
+    pub fn index(&self, target: &str) -> Option<usize> {
         for (i, name) in self.names.iter().rev().enumerate() {
             if name == target {
                 return Some(i);
             }
         }
         None
+    }
+
+    pub fn name(&self, index: usize) -> Option<&str> {
+        if index < self.len() {
+            Some(&self.names[self.len() - index - 1])
+        } else {
+            None
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -301,5 +313,29 @@ impl fmt::Display for Term {
             Term::Abs(abs) => write!(f, "(\\. {})", abs.body),
             Term::App(app) => write!(f, "({} {})", app.callee, app.arg),
         }
+    }
+}
+
+impl Term {
+    pub fn into_unpositioned_named(self) -> NamedTerm {
+        NamedTerm::unpositioned_from_unnamed(self, &Context::empty())
+    }
+}
+
+impl Var {
+    pub fn into_unpositioned_named(self) -> named::Var {
+        named::Var::unpositioned_from_unnamed(self, &Context::empty())
+    }
+}
+
+impl Abs {
+    pub fn into_unpositioned_named(self) -> named::Abs {
+        named::Abs::unpositioned_from_unnamed(self, &Context::empty())
+    }
+}
+
+impl App {
+    pub fn into_unpositioned_named(self) -> named::App {
+        named::App::unpositioned_from_unnamed(self, &Context::empty())
     }
 }
