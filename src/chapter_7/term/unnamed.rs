@@ -1,6 +1,7 @@
 use super::named;
 use crate::file_position::{FilePositionRange, Position};
 use named::Term as NamedTerm;
+use std::convert::TryFrom;
 use std::fmt;
 use std::ops::Add;
 
@@ -168,6 +169,14 @@ impl Position for &Abs {
 impl Position for &App {
     fn position(self) -> FilePositionRange {
         self.position
+    }
+}
+
+impl TryFrom<NamedTerm> for Term {
+    type Error = CannotFindVarInCtxErr;
+
+    fn try_from(named: NamedTerm) -> Result<Term, CannotFindVarInCtxErr> {
+        Term::from_named(named, &Context::from_strings(&[]))
     }
 }
 

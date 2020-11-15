@@ -1,11 +1,11 @@
+use std::convert::TryFrom;
 use tapl_rust::chapter_7::*;
-use term::unnamed::{Context, Term as UnnamedTerm};
+use term::unnamed::Term as UnnamedTerm;
 
 fn main() {
-    let src = r#"(\a. a \_. b) \x.x"#;
+    let src = r#"(\a. a \b. a) \x.x"#;
     let unnamed =
-        UnnamedTerm::from_named(parse(src).expect("Cannot parse."), &Context::from_strs(&[]))
-            .expect("Cannot remove names.");
+        UnnamedTerm::try_from(parse(src).expect("Cannot parse.")).expect("Cannot remove names.");
     println!("Unnamed: {}", unnamed);
     let res1 = eval1(unnamed.clone()).expect("Cannot eval 1");
     println!("Eval1: {}", res1);
